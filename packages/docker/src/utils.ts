@@ -31,6 +31,13 @@ export function optionsWithDockerEnvs(
 ): RunDockerCommandOptions | undefined {
   // From https://docs.docker.com/engine/reference/commandline/cli/#environment-variables
   const dockerCliEnvs = new Set([
+    // ADDED BW-ROBOTICS
+    'PATH',
+    'AWS_DEFAULT_REGION',
+    'AWS_REGION',
+    'AWS_ROLE_ARN',
+    'AWS_WEB_IDENTITY_TOKEN_FILE',
+    // ADDED BW-ROBOTICS
     'DOCKER_API_VERSION',
     'DOCKER_CERT_PATH',
     'DOCKER_CONFIG',

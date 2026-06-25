@@ -52,12 +52,14 @@ export async function prepareJob(
     } finally {
       await registryLogout(configLocation)
     }
-
+    // ADDED BW-ROBOTICS
     containerMetadata = await createContainer(
       container,
       generateContainerName(container.image),
-      networkName
+      networkName,
+      true // ENABLE IRSA
     )
+    // ADDED BW-ROBOTICS
     if (!containerMetadata?.id) {
       throw new Error('Failed to create container')
     }

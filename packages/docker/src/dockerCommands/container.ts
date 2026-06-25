@@ -12,10 +12,20 @@ import { v4 as uuidv4 } from 'uuid'
 import { runDockerCommand, RunDockerCommandOptions } from '../utils'
 import { getRunnerLabel } from './constants'
 
+// ADDED BW-ROBOTICS
+const AWS_IRSA_ENVS = [
+  'AWS_WEB_IDENTITY_TOKEN_FILE',
+  'AWS_ROLE_ARN',
+  'AWS_REGION',
+  'AWS_DEFAULT_REGION'
+]
+// ADDED BW-ROBOTICS
+
 export async function createContainer(
   args: ContainerInfo,
   name: string,
-  network: string
+  network: string,
+  includeAwsIrsa = false
 ): Promise<ContainerMetadata> {
   if (!args.image) {
     throw new Error('Image was expected')
@@ -46,14 +56,34 @@ export async function createContainer(
       dockerArgs.push('-e', key)
     }
   }
-
+  // ADDED BW-ROBOTICS
+  if (includeAwsIrsa) {
+    for (const key of AWS_IRSA_ENVS) {
+      if (process.env[key]) {
+        dockerArgs.push('-e', `${key}=${process.env[key]}`)
+      }
+    }
+  }
+  // ADDED BW-ROBOTICS
   dockerArgs.push('-e', 'GITHUB_ACTIONS=true')
   // Use same behavior as the runner https://github.com/actions/runner/blob/27d9c886ab9a45e0013cb462529ac85d581f8c41/src/Runner.Worker/Container/DockerCommandManager.cs#L150
   if (!('CI' in (args.environmentVariables ?? {}))) {
     dockerArgs.push('-e', 'CI=true')
   }
-
+  // ADDED BW-ROBOTICS
+  const tokenFile = process.env.AWS_WEB_IDENTITY_TOKEN_FILE
+  const tokenDir = tokenFile ? path.dirname(tokenFile) : undefined
   const mountVolumes = [
+    ...(includeAwsIrsa && tokenDir
+      ? [
+          {
+            sourceVolumePath: tokenDir,
+            targetVolumePath: tokenDir,
+            readOnly: true
+          }
+        ]
+      : []),
+    // ADDED BW-ROBOTICS
     ...(args.userMountVolumes || []),
     ...(args.systemMountVolumes || [])
   ]
@@ -297,7 +327,7 @@ export async function getContainerEnvValue(
 }
 
 export async function registryLogin(registry?: Registry): Promise<string> {
-  if (!registry) {
+  if (!registry?.username || !registry.password) {
     return ''
   }
   const credentials = {
