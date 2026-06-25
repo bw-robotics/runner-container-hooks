@@ -3,7 +3,7 @@ name: Build and publish to do-actions-runner
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
   REPOSITORY_NAME: do-actions-runner
