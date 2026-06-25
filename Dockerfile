@@ -1,11 +1,28 @@
 # THIS DOCKER IS ADDED MANUALLY AND IT IS BASED ON:
 # https://github.com/actions/runner/blob/main/images/Dockerfile
 
+# docker buildx build \
+#    --push \
+#    --platform linux/amd64,linux/arm64 \
+#    -t <ECR>/do-actions-runner:2.335.1 \
+#    -f Dockerfile .
+
+FROM node:24-bookworm AS docker-package-build
+WORKDIR /src
+
+COPY . .
+
+RUN npm install
+RUN npm run bootstrap
+
+# build all since hooklib is used in packages/docker
+RUN npm run build-all
+
 # Source: https://github.com/dotnet/dotnet-docker
 FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-noble AS build
 
 ARG TARGETOS=linux
-ARG TARGETARCH=
+ARG TARGETARCH
 ARG RUNNER_VERSION=2.335.1
 ARG RUNNER_CONTAINER_HOOKS_VERSION=0.8.1
 ARG DOCKER_VERSION=29.6.0
@@ -56,6 +73,7 @@ RUN apt update -y \
 RUN add-apt-repository ppa:git-core/ppa \
     && apt update -y \
     && apt install -y git \
+    
     && rm -rf /var/lib/apt/lists/*
 
 RUN adduser --disabled-password --gecos "" --uid 1001 runner \
@@ -74,7 +92,7 @@ COPY --from=build /usr/local/lib/docker/cli-plugins/docker-buildx /usr/local/lib
 RUN install -o root -g root -m 755 docker/* /usr/bin/ && rm -rf docker
 
 RUN mkdir -p /opt/actions-hooks/docker
-COPY --chown=runner:runner packages/docker/dist/index.js /opt/actions-hooks/docker/index.js
+COPY --chown=runner:runner --from=docker-package-build /src/packages/docker/dist/index.js /opt/actions-hooks/docker/index.js
 ENV ACTIONS_RUNNER_CONTAINER_HOOKS=/opt/actions-hooks/docker/index.js
 
 USER runner
